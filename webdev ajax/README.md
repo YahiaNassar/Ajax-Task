@@ -12,7 +12,7 @@ This is a simple TODO app that allows users to create, delete, and mark posts as
 1. Clone the repository to your local machine:
 
    ```bash
-   git clone https://github.com/yahianassar/
+   git clone https:[//github.com/yahianassar/](https://github.com/YahiaNassar/Ajax-Task/)
 Navigate to the project directory:
 
 ## bash
