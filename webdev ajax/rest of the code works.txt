@@ -1,0 +1,197 @@
+document.addEventListener("DOMContentLoaded", function () {
+    const postsContainer = document.getElementById("posts");
+    const addPostButton = document.getElementById("addPost");
+    const modal = document.getElementById("modal");
+    const closeModalButton = document.getElementById("closeModal");
+    const postForm = document.getElementById("postForm");
+    const userIdSelect = document.getElementById("userId");
+    const toggleThemeButton = document.getElementById("toggleTheme");
+    const openCreatePostModalButton = document.getElementById("openCreatePostModal");
+
+    let isDarkTheme = localStorage.getItem("theme") === "dark";
+    let deletedPostIds = []; // Maintain a list of deleted post IDs
+
+    // Function to toggle between dark and light themes
+    function toggleTheme() {
+        isDarkTheme = !isDarkTheme;
+        document.body.classList.toggle("dark-theme", isDarkTheme);
+        localStorage.setItem("theme", isDarkTheme ? "dark" : "light");
+    }
+
+    // Function to fetch and display posts
+    function fetchAndDisplayPosts() {
+        fetch("https://jsonplaceholder.typicode.com/posts")
+            .then(response => response.json())
+            .then(posts => {
+                posts = posts.filter(post => !deletedPostIds.includes(post.id)); // Exclude deleted posts
+
+                posts.sort((a, b) => {
+                    // Sort by importance (stored in localStorage)
+                    const isImportantA = localStorage.getItem(`important_${a.id}`);
+                    const isImportantB = localStorage.getItem(`important_${b.id}`);
+
+                    if (isImportantA && !isImportantB) {
+                        return -1;
+                    } else if (!isImportantA && isImportantB) {
+                        return 1;
+                    } else {
+                        // If both or neither are important, sort by ID (default order)
+                        return a.id - b.id;
+                    }
+                });
+
+                postsContainer.innerHTML = "";
+                posts.forEach(post => {
+                    const postElement = createPostElement(post);
+                    postsContainer.appendChild(postElement);
+                });
+            })
+            .catch(error => console.error("Error fetching posts:", error));
+    }
+
+    // Function to create an HTML element for a post
+    function createPostElement(post) {
+        const postElement = document.createElement("div");
+        postElement.id = `post_${post.id}`; // Set a unique id for each post element
+        postElement.innerHTML = `<h2>${post.title}</h2><p>${post.body}</p>`;
+    
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete";
+        deleteButton.addEventListener("click", () => deletePost(post.id));
+    
+        const importantButton = document.createElement("button");
+        importantButton.textContent = localStorage.getItem(`important_${post.id}`) ? "Unmark Important" : "Mark Important";
+        importantButton.addEventListener("click", () => toggleImportance(post.id));
+    
+        // Add some space between buttons using CSS
+        deleteButton.style.marginRight = "8px"; // Adjust the value as needed
+        importantButton.style.marginRight = "8px"; // Adjust the value as needed
+    
+        postElement.appendChild(deleteButton);
+        postElement.appendChild(importantButton);
+    
+        // Apply a different color to important posts
+        if (localStorage.getItem(`important_${post.id}`)) {
+            postElement.style.backgroundColor = "#ffd700"; // Change this to the desired color
+        }
+    
+        return postElement;
+    }
+
+    // Function to delete a post
+    function deletePost(postId) {
+        const isImportant = localStorage.getItem(`important_${postId}`);
+
+        // Ask for confirmation only for important posts
+        if (isImportant && !confirm("Are you sure you want to delete this important post?")) {
+            return;
+        }
+
+        // Remove the post element from the page
+        const postElement = document.getElementById(`post_${postId}`);
+        if (postElement) {
+            postElement.remove();
+        }
+
+        // Add the deleted post ID to the list
+        deletedPostIds.push(postId);
+    }
+
+    // Function to toggle the importance of a post
+    function toggleImportance(postId) {
+        const isImportant = localStorage.getItem(`important_${postId}`);
+        localStorage.setItem(`important_${postId}`, isImportant ? "" : "true");
+
+        fetchAndDisplayPosts(); // Update posts after toggling importance
+    }
+
+    // Function to open the modal for creating/editing posts
+    function openModal() {
+        modal.style.display = "flex";
+        fetchUserIds();
+    }
+
+    // Function to close the modal
+    function closeModal() {
+        modal.style.display = "none";
+    }
+
+    // Event listeners
+    addPostButton.addEventListener("click", openModal);
+    openCreatePostModalButton.addEventListener("click", openModal);
+    closeModalButton.addEventListener("click", closeModal);
+    toggleThemeButton.addEventListener("click", toggleTheme);
+
+    // Form submission
+    postForm.addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        const title = document.getElementById("title").value;
+        const body = document.getElementById("body").value;
+        const userId = userIdSelect.value;
+
+        // Call a function to create the post with the provided data
+        createPost(title, body, userId);
+
+        closeModal();
+    });
+
+    // Set the initial theme
+    toggleTheme();
+
+    // Initial fetch and display posts
+    fetchAndDisplayPosts();
+
+    // Fetch and populate the dropdown list of authors
+    fetchUserIds();
+});
+
+// Function to fetch and populate the dropdown list of authors
+function fetchUserIds() {
+    const userIdSelect = document.getElementById("userId");
+
+    fetch("https://jsonplaceholder.typicode.com/users")
+        .then(response => response.json())
+        .then(users => {
+            userIdSelect.innerHTML = "";
+            users.forEach(user => {
+                const option = document.createElement("option");
+                option.value = user.id;
+                option.textContent = user.name;
+                userIdSelect.appendChild(option);
+            });
+        })
+        .catch(error => console.error("Error fetching users:", error));
+}
+
+// Function to create a new post
+postForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    const title = document.getElementById("title").value;
+    const body = document.getElementById("body").value;
+    const userId = userIdSelect.value;
+
+    // Call a function to create the post with the provided data
+    createPost(title, body, userId);
+
+    closeModal();
+});
+
+// Function to create a new post
+function createPost(title, body, userId) {
+    // Prepare the new post data
+    const newPost = {
+        userId: userId,
+        title: title,
+        body: body,
+        id: Date.now(), // Using a timestamp as a temporary unique ID
+    };
+
+    // Create the HTML element for the new post
+    const newPostElement = createPostElement(newPost);
+
+    // Insert the new post at the beginning of the posts container
+    const postsContainer = document.getElementById("posts");
+    postsContainer.insertBefore(newPostElement, postsContainer.firstChild);
+}
